@@ -90,6 +90,114 @@ module processor(
     output [31:0] data_writeReg;
     input [31:0] data_readRegA, data_readRegB;
 
-    /* YOUR CODE STARTS HERE */
+        /* YOUR CODE STARTS HERE */
+    
+    // Program Counter
+    reg [11:0] pc;
+    
+    // Instruction fields
+    wire [5:0] opcode;
+    wire [4:0] rs, rt, rd, shamt;
+    wire [5:0] funct;
+    wire [15:0] immediate;
+    wire [31:0] sign_extended_immediate;
+    
+    // Control signals
+    reg reg_write, mem_write, mem_read;
+    reg [4:0] alu_op;
+    reg alu_src;
+    
+    // ALU signals
+    wire [31:0] alu_input_a, alu_input_b, alu_result;
+    wire alu_zero, alu_overflow;
+    
+    // Extract instruction fields
+    assign opcode = q_imem[31:26];
+    assign rs = q_imem[25:21];
+    assign rt = q_imem[20:16];
+    assign rd = q_imem[15:11];
+    assign shamt = q_imem[10:6];
+    assign funct = q_imem[5:0];
+    assign immediate = q_imem[15:0];
+    assign sign_extended_immediate = {{16{immediate[15]}}, immediate};
+    
+    // Connect to memory and register file
+    assign address_imem = pc;
+    assign ctrl_readRegA = rs;
+    assign ctrl_readRegB = rt;
+    assign ctrl_writeReg = (opcode == 6'b000000) ? rd : rt;
+    assign data_writeReg = mem_read ? q_dmem : alu_result;
+    // Prevent writing to register 0
+    assign ctrl_writeEnable = reg_write && (ctrl_writeReg != 5'b00000);
+    
+    assign address_dmem = alu_result[11:0];
+    assign data = data_readRegB;
+    assign wren = mem_write;
+    
+    // ALU connections
+    assign alu_input_a = data_readRegA;
+    assign alu_input_b = alu_src ? sign_extended_immediate : data_readRegB;
+    
+    // Instantiate ALU
+    alu my_alu(
+        .data_operandA(alu_input_a),
+        .data_operandB(alu_input_b),
+        .ctrl_ALUopcode(alu_op),
+        .ctrl_shiftamt(shamt),
+        .data_result(alu_result),
+        .isNotEqual(alu_zero),
+        .isLessThan(),
+        .overflow(alu_overflow)
+    );
+    
+    // Control logic
+    always @(*) begin
+        // Default values
+        reg_write = 0;
+        mem_write = 0;
+        mem_read = 0;
+        alu_op = 0;
+        alu_src = 0;
+        
+        case (opcode)
+            6'b000000: begin // R-type instructions
+                reg_write = 1;
+                alu_src = 0;
+                case (funct)
+                    6'b100000: alu_op = 0; // add
+                    6'b100010: alu_op = 1; // sub
+                    6'b100100: alu_op = 2; // and
+                    6'b100101: alu_op = 3; // or
+                    6'b000000: alu_op = 4; // sll
+                    6'b000011: alu_op = 5; // sra
+                endcase
+            end
+            6'b001000: begin // addi
+                reg_write = 1;
+                alu_src = 1;
+                alu_op = 0; // add
+            end
+            6'b101011: begin // sw
+                mem_write = 1;
+                alu_src = 1;
+                alu_op = 0; // add
+            end
+            6'b100011: begin // lw
+                reg_write = 1;
+                mem_read = 1;
+                alu_src = 1;
+                alu_op = 0; // add
+            end
+        endcase
+    end
+    
+    // PC update
+    always @(posedge clock or posedge reset) begin
+        if (reset) begin
+            pc <= 0;
+        end else begin
+            pc <= pc + 1;
+        end
+    end
 
 endmodule
