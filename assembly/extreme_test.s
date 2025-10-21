@@ -65,9 +65,7 @@ add  $19, $18, $6        # $19 = $18 + $6  => 999 + 20 = 1019
 
 # --- ADDI edge cases (covers sign-extension & bounds) ---
 # Large positive immediate (max 17-bit = +65535)
-addi $30, $0, 65535       # $30 = 65535  (use temp reg; note $30 is rstatus in ISA — if using r30 for exceptions, choose another reg like $24 instead)
-# (If you used $30 above for a temp, you may want to use $24 to avoid collision with rstatus)
-addi $24, $0, 65535       # $24 = +65535  (boundary +)
+addi $24, $0, 65535       # $24 = 65535  (boundary +)
 
 # Large negative immediate (min 17-bit = -65536)
 addi $25, $0, -65536      # $25 = -65536 (boundary -)
@@ -102,25 +100,5 @@ addi $31, $0, 32767       # $31 = 32767
 sll  $31, $31, 16         # $31 <<=16 -> 0x7FFF0000
 addi $31, $31, 65535      # $31 = 0x7FFFFFFF (INT_MAX)
 addi $31, $31, 1          # overflow -> $30 should be set to 2 (check rstatus immed after this)
-
-# # Another add overflow variant: add with reg that causes overflow
-# # Prepare registers for a second add overflow
-# addi $40, $0, 1           # $40 = 1
-# sll  $40, $40, 30         # $40 = 0x40000000
-# # create two regs to add to overflow
-# add  $41, $40, $40        # $41 = 0x80000000 -> overflow -> rstatus = 1
-
-# # Sub overflow variant (mirror): create min and subtract causing overflow
-# addi $42, $0, 1
-# sll  $42, $42, 31         # $42 = 0x80000000 (INT_MIN)
-# sub  $43, $42, $12        # $43 will overflow signed -> rstatus = 3
-
-# # --- Small synthetic sequence (no branches)
-# # compute address = $5 + 20, store then load and compute
-# addi $50, $5, 20          # $50 = $5 + 20  (address)
-# addi $51, $0, 1234        # $51 = 1234
-# sw   $51, 20($5)          # MEM[$5 + 20] = 1234
-# lw   $52, 20($5)          # $52 = 1234
-# add  $53, $52, $6         # $53 = 1234 + 20 = 1254
 
 nop

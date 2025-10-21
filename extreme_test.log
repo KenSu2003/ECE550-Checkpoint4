@@ -1,0 +1,195 @@
+# Reset released, starting program execution
+# Time                70000: PC=1 Instr=00000000
+# Time                90000: PC=2 Instr=28400007
+#   Write observed: REG r1 <= 0x00000007
+# [TB][90000] Reg write observed: r1 <= 0x00000007
+# Time               110000: PC=3 Instr=2880000d
+#   Write observed: REG r2 <= 0x0000000d
+# [TB][110000] Reg write observed: r2 <= 0x0000000d
+# Time               130000: PC=4 Instr=28c1fffb
+#   Write observed: REG r3 <= 0xfffffffb
+# [TB][130000] Reg write observed: r3 <= 0xfffffffb
+# Time               150000: PC=5 Instr=29400064
+#   Write observed: REG r5 <= 0x00000064
+# [TB][150000] Reg write observed: r5 <= 0x00000064
+# Time               170000: PC=6 Instr=2b000001
+#   Write observed: REG r12 <= 0x00000001
+# [TB][170000] Reg write observed: r12 <= 0x00000001
+# Time               190000: PC=7 Instr=01822000
+#   Write observed: REG r6 <= 0x00000014
+# [TB][190000] Reg write observed: r6 <= 0x00000014
+# Time               210000: PC=8 Instr=01c41004
+#   Write observed: REG r7 <= 0x00000006
+# [TB][210000] Reg write observed: r7 <= 0x00000006
+# Time               230000: PC=9 Instr=02022008
+#   Write observed: REG r8 <= 0x00000005
+# [TB][230000] Reg write observed: r8 <= 0x00000005
+# Time               250000: PC=10 Instr=0242200c
+#   Write observed: REG r9 <= 0x0000000f
+# [TB][250000] Reg write observed: r9 <= 0x0000000f
+# Time               270000: PC=11 Instr=2a83fffd
+#   Write observed: REG r10 <= 0x00000004
+# [TB][270000] Reg write observed: r10 <= 0x00000004
+# Time               290000: PC=12 Instr=2ac60001
+#   Write observed: REG r11 <= 0xfffffffc
+# [TB][290000] Reg write observed: r11 <= 0xfffffffc
+# Time               310000: PC=13 Instr=03580210
+#   Write observed: REG r13 <= 0x00000010
+# [TB][310000] Reg write observed: r13 <= 0x00000010
+# Time               330000: PC=14 Instr=2b81fff0
+#   Write observed: REG r14 <= 0xfffffff0
+# [TB][330000] Reg write observed: r14 <= 0xfffffff0
+# Time               350000: PC=15 Instr=03dc0114
+#   Write observed: REG r15 <= 0xfffffffc
+# [TB][350000] Reg write observed: r15 <= 0xfffffffc
+# Time               370000: PC=16 Instr=398a0003
+#   Mem write observed: MEM[103] <= 0x00000014
+# [TB][370000] Dmem write observed: MEM[103] <= 0x00000014
+# Time               390000: PC=17 Instr=41ca0003
+#   Write observed: REG r7 <= 0x00000014
+# [TB][390000] Reg write observed: r7 <= 0x00000014
+# Time               410000: PC=18 Instr=2d000001
+#   Write observed: REG r20 <= 0x00000001
+# [TB][410000] Reg write observed: r20 <= 0x00000001
+# Time               430000: PC=19 Instr=05280f10
+#   Write observed: REG r20 <= 0x40000000
+# [TB][430000] Reg write observed: r20 <= 0x40000000
+# Time               450000: PC=20 Instr=05694000
+#   Write observed: REG r30 <= 0x00000001
+# [TB][450000] Reg write observed: r30 <= 0x00000001
+# Time               470000: PC=21 Instr=2f007fff
+#   Write observed: REG r28 <= 0x00007fff
+# [TB][470000] Reg write observed: r28 <= 0x00007fff
+# Time               490000: PC=22 Instr=07380810
+#   Write observed: REG r28 <= 0x7fff0000
+# [TB][490000] Reg write observed: r28 <= 0x7fff0000
+# Time               510000: PC=23 Instr=2f38ffff
+#   Write observed: REG r28 <= 0x7fffffff
+# [TB][510000] Reg write observed: r28 <= 0x7fffffff
+# Time               530000: PC=24 Instr=2f380001
+#   Write observed: REG r30 <= 0x00000001
+# [TB][530000] Reg write observed: r30 <= 0x00000001
+# Time               550000: PC=25 Instr=2f400001
+#   Write observed: REG r29 <= 0x00000001
+# [TB][550000] Reg write observed: r29 <= 0x00000001
+# Time               570000: PC=26 Instr=077a0f90
+#   Write observed: REG r29 <= 0x80000000
+# [TB][570000] Reg write observed: r29 <= 0x80000000
+# Time               590000: PC=27 Instr=05fac004
+#   Write observed: REG r30 <= 0x00000003
+# [TB][590000] Reg write observed: r30 <= 0x00000003
+# Time               610000: PC=28 Instr=2c020004
+#   Write observed: REG r16 <= 0x0000000b
+# [TB][610000] Reg write observed: r16 <= 0x0000000b
+# Time               630000: PC=29 Instr=2c4003e7
+#   Write observed: REG r17 <= 0x000003e7
+# [TB][630000] Reg write observed: r17 <= 0x000003e7
+# Time               650000: PC=30 Instr=3c4a000b
+#   Mem write observed: MEM[111] <= 0x000003e7
+# [TB][650000] Dmem write observed: MEM[111] <= 0x000003e7
+# Time               670000: PC=31 Instr=448a000b
+#   Write observed: REG r18 <= 0x000003e7
+# [TB][670000] Reg write observed: r18 <= 0x000003e7
+# Time               690000: PC=32 Instr=04e46000
+#   Write observed: REG r19 <= 0x000003fb
+# [TB][690000] Reg write observed: r19 <= 0x000003fb
+# Time               710000: PC=33 Instr=2f80ffff
+#   Write observed: REG r30 <= 0x0000ffff
+# [TB][710000] Reg write observed: r30 <= 0x0000ffff
+# Time               730000: PC=34 Instr=2e00ffff
+#   Write observed: REG r24 <= 0x0000ffff
+# [TB][730000] Reg write observed: r24 <= 0x0000ffff
+# Time               750000: PC=35 Instr=2e410000
+#   Write observed: REG r25 <= 0xffff0000
+# [TB][750000] Reg write observed: r25 <= 0xffff0000
+# Time               770000: PC=36 Instr=384a0000
+#   Mem write observed: MEM[100] <= 0x00000007
+# [TB][770000] Dmem write observed: MEM[100] <= 0x00000007
+# Time               790000: PC=37 Instr=384bffff
+#   Mem write observed: MEM[99] <= 0x00000007
+# [TB][790000] Dmem write observed: MEM[99] <= 0x00000007
+# Time               810000: PC=38 Instr=468a0000
+#   Write observed: REG r26 <= 0x00000007
+# [TB][810000] Reg write observed: r26 <= 0x00000007
+# Time               830000: PC=39 Instr=46cbffff
+#   Write observed: REG r27 <= 0x00000007
+# [TB][830000] Reg write observed: r27 <= 0x00000007
+# Time               850000: PC=40 Instr=38ca0005
+#   Mem write observed: MEM[105] <= 0xfffffffb
+# [TB][850000] Dmem write observed: MEM[105] <= 0xfffffffb
+# Time               870000: PC=41 Instr=438a0005
+#   Write observed: REG r14 <= 0xfffffffb
+# [TB][870000] Reg write observed: r14 <= 0xfffffffb
+# Time               890000: PC=42 Instr=28800015
+#   Write observed: REG r2 <= 0x00000015
+# [TB][890000] Reg write observed: r2 <= 0x00000015
+# Time               910000: PC=43 Instr=388a0007
+#   Mem write observed: MEM[107] <= 0x00000015
+# [TB][910000] Dmem write observed: MEM[107] <= 0x00000015
+# Time               930000: PC=44 Instr=420a0007
+#   Write observed: REG r8 <= 0x00000015
+# [TB][930000] Reg write observed: r8 <= 0x00000015
+# Time               950000: PC=45 Instr=398a0001
+#   Mem write observed: MEM[101] <= 0x00000014
+# [TB][950000] Dmem write observed: MEM[101] <= 0x00000014
+# Time               970000: PC=46 Instr=3a4a0002
+#   Mem write observed: MEM[102] <= 0x0000000f
+# [TB][970000] Dmem write observed: MEM[102] <= 0x0000000f
+# Time               990000: PC=47 Instr=454a0001
+#   Write observed: REG r21 <= 0x0000000f
+# [TB][990000] Reg write observed: r21 <= 0x0000000f
+# Time              1010000: PC=48 Instr=458a0002
+#   Write observed: REG r22 <= 0x00000014
+# [TB][1010000] Reg write observed: r22 <= 0x00000014
+# Time              1030000: PC=49 Instr=2fc07fff
+#   Write observed: REG r31 <= 0x00007fff
+# [TB][1030000] Reg write observed: r31 <= 0x00007fff
+# Time              1050000: PC=50 Instr=07fe0810
+#   Write observed: REG r31 <= 0x7fff0000
+# [TB][1050000] Reg write observed: r31 <= 0x7fff0000
+# [TB][1070000] Reg write observed: r31 <= 0x7fffffff
+# [TB][1090000] Reg write observed: r30 <= 0x00000001
+# 
+# --- Running automated checks ---
+# Checking registers 1..31 and selected memory locations...
+# PASS: r1 == 0x00000007
+# PASS: r2 == 0x00000015
+# PASS: r3 == 0xfffffffb
+# FAIL: r4 was never observed written (observed value 0x00000000)
+# PASS: r5 == 0x00000064
+# PASS: r6 == 0x00000014
+# PASS: r7 == 0x00000014
+# PASS: r8 == 0x00000015
+# PASS: r9 == 0x0000000f
+# PASS: r10 == 0x00000004
+# PASS: r11 == 0xfffffffc
+# PASS: r12 == 0x00000001
+# PASS: r13 == 0x00000010
+# PASS: r14 == 0xfffffffb
+# PASS: r15 == 0xfffffffc
+# PASS: r16 == 0x0000000b
+# PASS: r17 == 0x000003e7
+# PASS: r18 == 0x000003e7
+# PASS: r19 == 0x000003fb
+# PASS: r20 == 0x40000000
+# FAIL: r21 expected 0x00000014 observed 0x0000000f
+# FAIL: r22 expected 0x0000000f observed 0x00000014
+# FAIL: r23 was never observed written (observed value 0x00000000)
+# PASS: r24 == 0x0000ffff
+# PASS: r25 == 0xffff0000
+# PASS: r26 == 0x00000007
+# PASS: r27 == 0x00000007
+# PASS: r28 == 0x7fffffff
+# PASS: r29 == 0x80000000
+# FAIL: r30 expected 0x00000002 observed 0x00000001
+# PASS: r31 == 0x7fffffff
+# PASS: MEM[99] == 0x00000007
+# PASS: MEM[100] == 0x00000007
+# PASS: MEM[101] == 0x00000014
+# PASS: MEM[102] == 0x0000000f
+# PASS: MEM[103] == 0x00000014
+# PASS: MEM[105] == 0xfffffffb
+# PASS: MEM[107] == 0x00000015
+# PASS: MEM[111] == 0x000003e7
+# 
+# CHECKS FAILED: 5 mismatches

@@ -107,7 +107,7 @@ module processor_tb();
         reset = 1;
         $display("Simulation starting...");
 
-        #50 reset = 0;
+        #70 reset = 0;
         $display("Reset released, starting program execution");
 
         // quick monitor
@@ -128,30 +128,49 @@ module processor_tb();
         for (i = 0; i < 32; i = i + 1) expected_reg[i] = 32'h00000000;
         for (i = 0; i < DMEM_SHADOW_SIZE; i = i + 1) expected_mem_arr[i] = 32'h00000000;
 
-        // Registers from the observed extreme_test.s run
-        expected_reg[1]  = 32'h00000007;
-        expected_reg[2]  = 32'h00000015;
-        expected_reg[3]  = 32'hFFFFFFFB;
+        // Registers from the provided assembly (final expected values)
+        expected_reg[0]  = 32'h00000000;
+        expected_reg[1]  = 32'h00000007;    // $1 = 7
+        expected_reg[2]  = 32'h00000015;    // $2 final = 21 (updated later)
+        expected_reg[3]  = 32'hFFFFFFFB;    // -5
         expected_reg[4]  = 32'h00000000;
-        expected_reg[5]  = 32'h00000064;
-        expected_reg[6]  = 32'h00000014;
-        expected_reg[7]  = 32'h00000014;
-        expected_reg[8]  = 32'h00000015;
-        expected_reg[9]  = 32'h0000000F;
+        expected_reg[5]  = 32'h00000064;    // 100
+        expected_reg[6]  = 32'h00000014;    // 20
+        expected_reg[7]  = 32'h00000014;    // overwritten by lw -> 20
+        expected_reg[8]  = 32'h00000015;    // overwritten by lw -> 21
+        expected_reg[9]  = 32'h0000000F;    // 15
         expected_reg[10] = 32'h00000004;
         expected_reg[11] = 32'hFFFFFFFC;
         expected_reg[12] = 32'h00000001;
         expected_reg[13] = 32'h00000010;
+        expected_reg[14] = 32'hFFFFFFFB;    // overwritten by lw from MEM[105] (r3 = -5)
+        expected_reg[15] = 32'hFFFFFFFC;
+        expected_reg[16] = 32'h0000000B;    // 11
+        expected_reg[17] = 32'h000003E7;    // 999
+        expected_reg[18] = 32'h000003E7;    // 999 (loaded)
+        expected_reg[19] = 32'h000003FB;    // 1019
+        expected_reg[20] = 32'h40000000;    // 1 << 30
+        expected_reg[21] = 32'h00000014;    // loaded later from MEM[101] -> 20
+        expected_reg[22] = 32'h0000000F;    // loaded later from MEM[102] -> 15
+        expected_reg[23] = 32'h00000000;    // not written due to overflow exception
+        expected_reg[24] = 32'h0000FFFF;    // 65535
+        expected_reg[25] = 32'hFFFF0000;    // -65536
+        expected_reg[26] = 32'h00000007;    // 7 (from MEM[100])
+        expected_reg[27] = 32'h00000007;    // 7 (from MEM[99])
+        expected_reg[28] = 32'h7FFFFFFF;    // INT_MAX (set before overflow)
+        expected_reg[29] = 32'h80000000;    // 1 << 31
+        expected_reg[30] = 32'h00000002;    // rstatus from addi overflow (should be 2)
+        expected_reg[31] = 32'h7FFFFFFF;    // INT_MAX (set earlier)
 
         // Memory expectations (word addresses)
-        expected_mem_arr[99]  = 32'h00000007;
-        expected_mem_arr[100] = 32'h00000007;
-        expected_mem_arr[101] = 32'h00000014;
-        expected_mem_arr[102] = 32'h0000000F;
-        expected_mem_arr[103] = 32'h00000014;
-        expected_mem_arr[105] = 32'hFFFFFFFB;
-        expected_mem_arr[107] = 32'h00000015;
-        expected_mem_arr[111] = 32'h000003E7;
+        expected_mem_arr[99]  = 32'h00000007;    // MEM[$5 - 1]
+        expected_mem_arr[100] = 32'h00000007;    // MEM[$5 + 0]
+        expected_mem_arr[101] = 32'h00000014;    // MEM[$5 + 1]
+        expected_mem_arr[102] = 32'h0000000F;    // MEM[$5 + 2]
+        expected_mem_arr[103] = 32'h00000014;    // MEM[$5 + 3]
+        expected_mem_arr[105] = 32'hFFFFFFFB;    // MEM[$5 + 5] = r3 (-5)
+        expected_mem_arr[107] = 32'h00000015;    // MEM[$5 + 7] = r2 (21)
+        expected_mem_arr[111] = 32'h000003E7;    // MEM[$5 + 11] = 999
 
         $display("\n--- Running automated checks ---");
         run_checks();
@@ -174,10 +193,10 @@ module processor_tb();
     task run_checks();
         begin
             fails = 0;
-            $display("Checking registers 1..13 and selected memory locations...");
+            $display("Checking registers 1..31 and selected memory locations...");
 
-            // Check registers 1..13
-            for (i = 1; i <= 13; i = i + 1) begin
+            // Check registers 1..31
+            for (i = 1; i <= 31; i = i + 1) begin
                 if (!tb_reg_written[i]) begin
                     $display("FAIL: r%0d was never observed written (observed value 0x%08h)", i, tb_regs[i]);
                     fails = fails + 1;

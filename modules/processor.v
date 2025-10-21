@@ -200,14 +200,19 @@ module processor(
        Overflow / rstatus handling
        --------------------------------------------------------------------- */
 
+    // Create separate signals for R-type add and I-type addi
+    wire r_add_overflow = r_type & add_func & alu_overflow;
+    wire i_addi_overflow = addi_type & alu_overflow;
+    wire r_sub_overflow = sub_op & alu_overflow;
+    
     wire [31:0] rstatus;
-    assign rstatus = (add_op & alu_overflow) ? 32'd1 :
-                     (addi_type & alu_overflow) ? 32'd2 :
-                     (sub_op & alu_overflow) ? 32'd3 :
+    assign rstatus = i_addi_overflow ? 32'd2 :
+                     r_add_overflow ? 32'd1 :
+                     r_sub_overflow ? 32'd3 :
                      32'd0;
 
     wire overflow_exception;
-    assign overflow_exception = ((add_op | addi_type | sub_op) & alu_overflow);
+    assign overflow_exception = r_add_overflow | i_addi_overflow | r_sub_overflow;
 
     /* ---------------------------------------------------------------------
        MEM stage: memory interface
