@@ -33,14 +33,14 @@ module processor_tb();
         #50 reset = 0;
         $display("Reset released, starting program execution");
         
-        // Monitor execution cycle by cycle for first 20 instructions
-        repeat(20) begin
+        // Monitor execution cycle by cycle for first 50 instructions
+        repeat(50) begin
             #20; // Wait for a clock cycle
-            $display("Time %t: PC=%d, Instr = %h", $time, dut.address_imem, dut.q_imem);
-            if (dut.ctrl_writeEnable)
-                $display("  Reg write: $%d = %d", dut.ctrl_writeReg, dut.data_writeReg);
-            if (dut.wren)
-                $display("  Mem write: MEM[%d] = %d", dut.address_dmem, dut.data);
+            $display("Time %t: PC=%d, Instr = %h", $time, dut.my_processor.address_imem, dut.my_processor.q_imem);
+            if (dut.my_processor.ctrl_writeEnable)
+                $display("  Reg write: $%d = %d", dut.my_processor.ctrl_writeReg, dut.my_processor.data_writeReg);
+            if (dut.my_processor.wren)
+                $display("  Mem write: MEM[%d] = %d", dut.my_processor.address_dmem, dut.my_processor.data);
         end
         
         // Run simulation for the rest of the program
@@ -48,8 +48,8 @@ module processor_tb();
         
         // Print final execution state
         $display("\nFinal state:");
-        $display("IMEM Address = %d", dut.address_imem);
-        $display("Last instruction = %h", dut.q_imem);
+        $display("IMEM Address = %d", dut.my_processor.address_imem);
+        $display("Last instruction = %h", dut.my_processor.q_imem);
         
         // Note: Cannot directly access internal register and memory values
         // Instead, we'll watch execution through observable signals
@@ -57,7 +57,7 @@ module processor_tb();
         
         // Check some ALU operations by monitoring ctrl_writeEnable and data_writeReg
         $display("Last register write: write_enable=%b, reg=%d, value=%d",
-                 dut.ctrl_writeEnable, dut.ctrl_writeReg, dut.data_writeReg);
+                 dut.my_processor.ctrl_writeEnable, dut.my_processor.ctrl_writeReg, dut.my_processor.data_writeReg);
         
         $display("Simulation finished");
         $finish;

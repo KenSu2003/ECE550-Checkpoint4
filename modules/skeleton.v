@@ -22,11 +22,11 @@ module skeleton(clock, reset, imem_clock, dmem_clock, processor_clock, regfile_c
     */
     output imem_clock, dmem_clock, processor_clock, regfile_clock;
     
-    // Connect all clock outputs to the input clock
-    assign imem_clock = ~clock;       // Inverted clock for imem (RAM typically needs falling edge)
-    assign dmem_clock = ~clock;       // Inverted clock for dmem (RAM typically needs falling edge)
-    assign processor_clock = clock;   // Direct clock for processor
-    assign regfile_clock = clock;     // Direct clock for regfile
+    // Configure all the clocks from the main clock source
+    assign imem_clock = ~clock;         // Remember to inver the clock
+    assign dmem_clock = ~clock;         // Remember to inver the clock
+    assign regfile_clock = clock;
+    assign processor_clock = clock;
 
     /** IMEM **/
     // Figure out how to generate a Quartus syncram component and commit the generated verilog file.
@@ -47,11 +47,11 @@ module skeleton(clock, reset, imem_clock, dmem_clock, processor_clock, regfile_c
     wire wren;
     wire [31:0] q_dmem;
     dmem my_dmem(
-        .address    (address_dmem),       // address of data
-        .clock      (dmem_clock),                  // may need to invert the clock
-        .data	    (data),    // data you want to write
-        .wren	    (wren),      // write enable
-        .q          (q_dmem)    // data from dmem
+        .address    (address_dmem),         // address of data
+        .clock      (dmem_clock),           // may need to invert the clock
+        .data	    (data),                 // data you want to write
+        .wren	    (wren),                 // write enable
+        .q          (q_dmem)                // data from dmem
     );
 
     /** REGFILE **/

@@ -71,6 +71,7 @@ module processor(
     data_readRegA,                  // I: Data from port A of regfile
     data_readRegB                   // I: Data from port B of regfile
 );
+
     // Control signals
     input clock, reset;
 
@@ -92,112 +93,177 @@ module processor(
 
         /* YOUR CODE STARTS HERE */
     
-    // Program Counter
+    /* ———————————————————— IF/ID Stage ———————————————————— */
     reg [11:0] pc;
+    wire [11:0] pc_plus_1, pc_next;
+    wire pc_src;
     
-    // Instruction fields
-    wire [5:0] opcode;
-    wire [4:0] rs, rt, rd, shamt;
-    wire [5:0] funct;
-    wire [15:0] immediate;
-    wire [31:0] sign_extended_immediate;
+    // PC+1 calculation
+    assign pc_plus_1 = pc + 1;
     
-    // Control signals
-    reg reg_write, mem_write, mem_read;
-    reg [4:0] alu_op;
-    reg alu_src;
+    // Branch Target Calculation
+    wire [11:0] branch_target;
+    assign branch_target = pc_plus_1;  // For now, same as pc_plus_1 since no branches
     
-    // ALU signals
-    wire [31:0] alu_input_a, alu_input_b, alu_result;
-    wire alu_zero, alu_overflow;
-    
-    // Extract instruction fields
-    assign opcode = q_imem[31:26];
-    assign rs = q_imem[25:21];
-    assign rt = q_imem[20:16];
-    assign rd = q_imem[15:11];
-    assign shamt = q_imem[10:6];
-    assign funct = q_imem[5:0];
-    assign immediate = q_imem[15:0];
-    assign sign_extended_immediate = {{16{immediate[15]}}, immediate};
-    
-    // Connect to memory and register file
-    assign address_imem = pc;
-    assign ctrl_readRegA = rs;
-    assign ctrl_readRegB = rt;
-    assign ctrl_writeReg = (opcode == 6'b000000) ? rd : rt;
-    assign data_writeReg = mem_read ? q_dmem : alu_result;
-    // Prevent writing to register 0
-    assign ctrl_writeEnable = reg_write && (ctrl_writeReg != 5'b00000);
-    
-    assign address_dmem = alu_result[11:0];
-    assign data = data_readRegB;
-    assign wren = mem_write;
-    
-    // ALU connections
-    assign alu_input_a = data_readRegA;
-    assign alu_input_b = alu_src ? sign_extended_immediate : data_readRegB;
-    
-    // Instantiate ALU
-    alu my_alu(
-        .data_operandA(alu_input_a),
-        .data_operandB(alu_input_b),
-        .ctrl_ALUopcode(alu_op),
-        .ctrl_shiftamt(shamt),
-        .data_result(alu_result),
-        .isNotEqual(alu_zero),
-        .isLessThan(),
-        .overflow(alu_overflow)
+    // PC Source Mux
+    mux_2_1 pc_mux (
+        .out(pc_next),
+        .a(pc_plus_1),
+        .b(branch_target),
+        .s(pc_src)
     );
-    
-    // Control logic
-    always @(*) begin
-        // Default values
-        reg_write = 0;
-        mem_write = 0;
-        mem_read = 0;
-        alu_op = 0;
-        alu_src = 0;
-        
-        case (opcode)
-            6'b000000: begin // R-type instructions
-                reg_write = 1;
-                alu_src = 0;
-                case (funct)
-                    6'b100000: alu_op = 0; // add
-                    6'b100010: alu_op = 1; // sub
-                    6'b100100: alu_op = 2; // and
-                    6'b100101: alu_op = 3; // or
-                    6'b000000: alu_op = 4; // sll
-                    6'b000011: alu_op = 5; // sra
-                endcase
-            end
-            6'b001000: begin // addi
-                reg_write = 1;
-                alu_src = 1;
-                alu_op = 0; // add
-            end
-            6'b101011: begin // sw
-                mem_write = 1;
-                alu_src = 1;
-                alu_op = 0; // add
-            end
-            6'b100011: begin // lw
-                reg_write = 1;
-                mem_read = 1;
-                alu_src = 1;
-                alu_op = 0; // add
-            end
-        endcase
-    end
     
     // PC update
     always @(posedge clock or posedge reset) begin
         if (reset) begin
             pc <= 0;
         end else begin
-            pc <= pc + 1;
+            pc <= pc_next;
         end
     end
+    
+    // PC -> Read Address
+    assign address_imem = pc;
+    
+    /* ———————————————————— ID/EX Stage ———————————————————— */
+    wire [4:0] opcode;
+    wire [4:0] rs, rt, rd, shamt;
+    wire [4:0] alu_op;
+    wire [16:0] immediate;
+    wire [31:0] sign_extended;
+    wire [1:0] zeroes;
+    
+    assign opcode = q_imem[31:27];
+    assign rd = q_imem[26:22];
+    assign rs = q_imem[21:17];
+    assign rt = q_imem[16:12];
+    assign shamt = q_imem[11:7];
+    assign alu_op = q_imem[6:2];
+    assign zeroes = q_imem[1:0];
+    assign immediate = q_imem[16:0];
+    assign sign_extended = {{15{immediate[16]}}, immediate};
 
+    assign ctrl_readRegA = rs;  // Read register 1
+    assign ctrl_readRegB = rt;  // Read register 2
+
+    
+    /* ———————————————————— Control Unit ———————————————————— */
+    
+    wire mem_read, mem_to_reg, mem_write, alu_src, reg_write, reg_dst;
+    
+    // Instruction types
+    wire r_type, addi_type, lw_type, sw_type;
+    
+    // R-type (opcode == 5'b00000)
+    and r_type_check (r_type, ~opcode[4], ~opcode[3], ~opcode[2], ~opcode[1], ~opcode[0]);
+    
+    // addi (opcode == 5'b00101)
+    and addi_check (addi_type, ~opcode[4], ~opcode[3], opcode[2], ~opcode[1], opcode[0]);
+    
+    // lw (opcode == 5'b01000)
+    and lw_check (lw_type, ~opcode[4], opcode[3], ~opcode[2], ~opcode[1], ~opcode[0]);
+    
+    // sw (opcode == 5'b00111)
+    and sw_check (sw_type, ~opcode[4], ~opcode[3], opcode[2], opcode[1], opcode[0]);
+    
+    // Control signals (action:type) , bitwise logical opetaion is ALLOWED
+    assign reg_write = r_type | addi_type | lw_type;
+    assign mem_write = sw_type;
+    assign mem_read = lw_type;
+    assign reg_dst = r_type;
+    assign alu_src = addi_type | lw_type | sw_type;
+    assign mem_to_reg = lw_type;
+    assign pc_src = 1'b0;  // No branches in this checkpoint
+        
+    /* ———————————————————— EX/MEM ———————————————————— */
+    // Mentioned above, here is where our write register is set
+    wire [4:0] write_reg;
+    mux_2_1 reg_dst_mux (
+        .out(write_reg),
+        .a(rt),
+        .b(rd),
+        .s(reg_dst)
+    );
+    assign ctrl_writeReg = write_reg;
+    
+    // ALU Source Mux
+    wire [31:0] alu_src_b;
+    mux_2_1 alu_src_mux (
+        .out(alu_src_b),
+        .a(data_readRegB),
+        .b(sign_extended),
+        .s(alu_src)
+    );
+    
+    // ALU
+    wire [31:0] alu_result;
+    wire alu_zero;
+    wire overflow;
+    
+    // ALU operation selection
+    wire add_op, sub_op, and_op, or_op, sll_op, sra_op;
+    
+    // R-type function codes
+    wire add_func, sub_func, and_func, or_func, sll_func, sra_func;
+    and add_gate (add_func, ~alu_op[4], ~alu_op[3], ~alu_op[2], ~alu_op[1], ~alu_op[0]);
+    and sub_gate (sub_func, ~alu_op[4], ~alu_op[3], ~alu_op[2], ~alu_op[1], alu_op[0]);
+    and and_gate (and_func, ~alu_op[4], ~alu_op[3], ~alu_op[2], alu_op[1], ~alu_op[0]);
+    and or_gate (or_func, ~alu_op[4], ~alu_op[3], ~alu_op[2], alu_op[1], alu_op[0]);
+    and sll_gate (sll_func, ~alu_op[4], ~alu_op[3], alu_op[2], ~alu_op[1], ~alu_op[0]);
+    and sra_gate (sra_func, ~alu_op[4], ~alu_op[3], alu_op[2], ~alu_op[1], alu_op[0]);
+    
+    assign add_op = r_type & add_func | addi_type;
+    assign sub_op = r_type & sub_func;
+    assign and_op = r_type & and_func;
+    assign or_op = r_type & or_func;
+    assign sll_op = r_type & sll_func;
+    assign sra_op = r_type & sra_func;
+    
+    // ALU control
+    wire [4:0] alu_control;
+    assign alu_control = add_op ? 5'b00000 :
+                         sub_op ? 5'b00001 :
+                         and_op ? 5'b00010 :
+                         or_op ? 5'b00011 :
+                         sll_op ? 5'b00100 :
+                         sra_op ? 5'b00101 :
+                         5'b00000;
+    
+    // ALU instantiation
+    alu main_alu (
+        .data_operandA(data_readRegA),
+        .data_operandB(alu_src_b),
+        .ctrl_ALUopcode(alu_control),
+        .ctrl_shiftamt(shamt),
+        .data_result(alu_result),
+        .isNotEqual(alu_zero),
+        .isLessThan(),
+        .overflow(overflow)
+    );
+    
+    // Overflow handling
+    wire [31:0] rstatus;
+    assign rstatus = (add_op & overflow) ? 32'd1 :
+                     (addi_type & overflow) ? 32'd2 :
+                     (sub_op & overflow) ? 32'd3 :
+                     32'd0;
+    
+    /* ———————————————————— MEM/WB Stage ———————————————————— */
+    // Memory Interface
+    assign address_dmem = alu_result[11:0];
+    assign data = data_readRegB;
+    assign wren = mem_write;
+    
+    /* ———————————————————— WB Stage ———————————————————— */
+    // Memory to Register Mux
+    mux_2_1 mem_to_reg_mux (
+        .out(data_writeReg),
+        .a(alu_result),
+        .b(q_dmem),
+        .s(mem_to_reg)
+    );
+    
+    // Register write enable
+    assign ctrl_writeEnable = reg_write;
+    
 endmodule
