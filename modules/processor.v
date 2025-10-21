@@ -133,6 +133,7 @@ module processor(
     wire [31:0] sign_extended;
     wire [1:0] zeroes;
     
+    // R-Type 
     assign opcode = q_imem[31:27];
     assign rd = q_imem[26:22];
     assign rs = q_imem[21:17];
@@ -140,9 +141,13 @@ module processor(
     assign shamt = q_imem[11:7];
     assign alu_op = q_imem[6:2];
     assign zeroes = q_imem[1:0];
+
+    // I-Type
     assign immediate = q_imem[16:0];
+
     assign sign_extended = {{15{immediate[16]}}, immediate};
 
+    // Pass data to the next stage
     assign ctrl_readRegA = rs;  // Read register 1
     assign ctrl_readRegB = rt;  // Read register 2
 
@@ -200,11 +205,20 @@ module processor(
     wire alu_zero;
     wire overflow;
     
-    // ALU operation selection
+    // ALU OP selection
     wire add_op, sub_op, and_op, or_op, sll_op, sra_op;
     
-    // R-type function codes
+    // R-type functions
+    /*
+        add     $rd, $rs, $rt	    00000 (00000)
+        sub     $rd, $rs, $rt	    00000 (00001)
+        and     $rd, $rs, $rt	    00000 (00010)
+        or      $rd, $rs, $rt	    00000 (00011)
+        sll     $rd, $rs, shamt	    00000 (00100)
+        sra     $rd, $rs, shamt	    00000 (00101)
+    */
     wire add_func, sub_func, and_func, or_func, sll_func, sra_func;
+
     and add_gate (add_func, ~alu_op[4], ~alu_op[3], ~alu_op[2], ~alu_op[1], ~alu_op[0]);
     and sub_gate (sub_func, ~alu_op[4], ~alu_op[3], ~alu_op[2], ~alu_op[1], alu_op[0]);
     and and_gate (and_func, ~alu_op[4], ~alu_op[3], ~alu_op[2], alu_op[1], ~alu_op[0]);
@@ -212,7 +226,7 @@ module processor(
     and sll_gate (sll_func, ~alu_op[4], ~alu_op[3], alu_op[2], ~alu_op[1], ~alu_op[0]);
     and sra_gate (sra_func, ~alu_op[4], ~alu_op[3], alu_op[2], ~alu_op[1], alu_op[0]);
     
-    assign add_op = r_type & add_func | addi_type;
+    assign add_op = r_type & add_func | addi_type;      // For addi
     assign sub_op = r_type & sub_func;
     assign and_op = r_type & and_func;
     assign or_op = r_type & or_func;
@@ -237,25 +251,33 @@ module processor(
         .ctrl_shiftamt(shamt),
         .data_result(alu_result),
         .isNotEqual(alu_zero),
-        .isLessThan(),
+        .isLessThan(),                      // NOTE: THIS PART IS MISSING
         .overflow(overflow)
     );
     
     // Overflow handling
+    /*
+        add : $rstatus = 1 if overflow
+        addi : $rstatus = 2 if overflow
+        sub : $rstatus = 3 if overflow    
+        default : 0
+    */
     wire [31:0] rstatus;
     assign rstatus = (add_op & overflow) ? 32'd1 :
                      (addi_type & overflow) ? 32'd2 :
                      (sub_op & overflow) ? 32'd3 :
                      32'd0;
     
+    
     /* ———————————————————— MEM/WB Stage ———————————————————— */
-    // Memory Interface
+    // ALU –> Data Memory
     assign address_dmem = alu_result[11:0];
     assign data = data_readRegB;
     assign wren = mem_write;
     
+
     /* ———————————————————— WB Stage ———————————————————— */
-    // Memory to Register Mux
+    // Memory –> Register Mux
     mux_2_1 mem_to_reg_mux (
         .out(data_writeReg),
         .a(alu_result),
