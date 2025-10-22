@@ -1,0 +1,28 @@
+# FAIL: r4 was never observed written (observed value 0x00000000)
+EXPECTED since we never used Register $4
+
+# FAIL: r23 was never observed written (observed value 0x00000000)
+EXPECTED since when there is an overflow, only the rstatus is written (to r30).
+
+
+———————————————————————— LW issue ————————————————————————
+
+# FAIL: r21 expected 0x00000014 observed 0x0000000f
+# FAIL: r22 expected 0x0000000f observed 0x00000014
+These two values seems to be swapped.
+
+Fixed by:
+
+// DFFEs to store the instructions
+genvar i;
+generate
+    for (i = 0; i < 12; i = i + 1) begin : pc_reg_gen
+        dffe_ref pc_dffe_i (
+            .q(pc[i]),
+            .d(pc_next[i]),
+            .clk(clock),
+            .en(1'b1),
+            .clr(reset)
+        );
+    end
+endgenerate

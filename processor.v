@@ -71,7 +71,6 @@ module processor(
     data_readRegA,                  // I: Data from port A of regfile
     data_readRegB                   // I: Data from port B of regfile
 );
-
     // Control signals
     input clock, reset;
 
@@ -91,201 +90,295 @@ module processor(
     output [31:0] data_writeReg;
     input [31:0] data_readRegA, data_readRegB;
 
-        /* YOUR CODE STARTS HERE */
-    
-    /* ———————————————————— IF/ID Stage ———————————————————— */
-    reg [11:0] pc;
+    /* YOUR CODE STARTS HERE */
+
+    /* —————————————————————————— IF stage —————————————————————————— */
+    wire [11:0] pc;
     wire [11:0] pc_plus_1, pc_next;
     wire pc_src;
-    
-    // PC+1 calculation
-    assign pc_plus_1 = pc + 1;
-    
-    // Branch Target Calculation
+    assign pc_src = 1'b0;
+
+    // Calcualte pc+1 , using ALU since we can't use '+' and its what the schematic uses
+    wire [31:0] pc_alu_result;
+    alu pc_alu (
+        .data_operandA({20'b0, pc}),
+        .data_operandB(32'd1),
+        .ctrl_ALUopcode(5'b00000),
+        .ctrl_shiftamt(5'b00000),
+        .data_result(pc_alu_result),
+        .isNotEqual(),
+        .isLessThan(),
+        .overflow()
+    );
+    assign pc_plus_1 = pc_alu_result[11:0];
+
+    // Calculate and select branch target, use pc_plus_1 for now since checkpoint 4 doesn't require it
     wire [11:0] branch_target;
-    assign branch_target = pc_plus_1;  // For now, same as pc_plus_1 since no branches
-    
-    // PC Source Mux
+    assign branch_target = pc_plus_1;   // THIS NEEDS TO BE CHANGED FOR CHECKPOINT 5
+
     mux_2_1 pc_mux (
         .out(pc_next),
         .a(pc_plus_1),
         .b(branch_target),
         .s(pc_src)
     );
-    
-    // PC update
-    always @(posedge clock or posedge reset) begin
-        if (reset) begin
-            pc <= 0;
-        end else begin
-            pc <= pc_next;
+
+    // DFFEs to store the instructions
+    genvar i;
+    generate
+        for (i = 0; i < 12; i = i + 1) begin : pc_reg_gen
+            dffe_ref pc_dffe_i (
+                .q(pc[i]),
+                .d(pc_next[i]),
+                .clk(clock),
+                .en(1'b1),
+                .clr(reset)
+            );
         end
-    end
-    
+    endgenerate
+
     // PC -> Read Address
     assign address_imem = pc;
-    
-    /* ———————————————————— ID/EX Stage ———————————————————— */
+
+    // Latch fetched instruction on processor clock for stable decode 
+    /*
+        THIS PART IS VERY IMPORTANT FOR TIMING AND FORWARDING THE LOADED DATA
+    */
+    wire [31:0] instr;
+    generate
+        for (i = 0; i < 32; i = i + 1) begin : instr_reg_gen
+            dffe_ref instr_dffe_i (
+                .q(instr[i]),
+                .d(q_imem[i]),
+                .clk(clock),
+                .en(1'b1),
+                .clr(reset)
+            );
+        end
+    endgenerate
+
+
+    /* —————————————————————————— ID stage —————————————————————————— */
     wire [4:0] opcode;
     wire [4:0] rs, rt, rd, shamt;
     wire [4:0] alu_op;
     wire [16:0] immediate;
     wire [31:0] sign_extended;
-    wire [1:0] zeroes;
+
+    // Universal
+    assign opcode    = instr[31:27];
     
-    // R-Type 
-    assign opcode = q_imem[31:27];
-    assign rd = q_imem[26:22];
-    assign rs = q_imem[21:17];
-    assign rt = q_imem[16:12];
-    assign shamt = q_imem[11:7];
-    assign alu_op = q_imem[6:2];
-    assign zeroes = q_imem[1:0];
+    // R-Type
+    assign rd        = instr[26:22];    // destination for R-type and I-type in this ISA
+    assign rs        = instr[21:17];    // source 
+    assign rt        = instr[16:12];
+    assign shamt     = instr[11:7];
+    assign alu_op    = instr[6:2];
+    // NOTE: ZEROES are just included in the sign exteded
 
-    // I-Type
-    assign immediate = q_imem[16:0];
+    // I-type
+    assign immediate = instr[16:0];
 
+    // For calculating brach and the ALU in EX stage
     assign sign_extended = {{15{immediate[16]}}, immediate};
 
-    // Pass data to the next stage
-    assign ctrl_readRegA = rs;  // Read register 1
-    assign ctrl_readRegB = rt;  // Read register 2
+    /* -------------------------------------------------------------------------------------
+        NOTE: Decoder moved here so lw_tpye and sw_type exists before use.
+        These types are later used to determine what operation the ALU is going to execute.
+       ------------------------------------------------------------------------------------- */
 
-    
-    /* ———————————————————— Control Unit ———————————————————— */
-    
-    wire mem_read, mem_to_reg, mem_write, alu_src, reg_write, reg_dst;
-    
-    // Instruction types
+    wire mem_read, mem_to_reg, mem_write, alu_src, reg_write;
     wire r_type, addi_type, lw_type, sw_type;
-    
-    // R-type (opcode == 5'b00000)
-    and r_type_check (r_type, ~opcode[4], ~opcode[3], ~opcode[2], ~opcode[1], ~opcode[0]);
-    
-    // addi (opcode == 5'b00101)
-    and addi_check (addi_type, ~opcode[4], ~opcode[3], opcode[2], ~opcode[1], opcode[0]);
-    
-    // lw (opcode == 5'b01000)
-    and lw_check (lw_type, ~opcode[4], opcode[3], ~opcode[2], ~opcode[1], ~opcode[0]);
-    
-    // sw (opcode == 5'b00111)
-    and sw_check (sw_type, ~opcode[4], ~opcode[3], opcode[2], opcode[1], opcode[0]);
-    
-    // Control signals (action:type) , bitwise logical opetaion is ALLOWED
+
+    and r_type_check (r_type, ~opcode[4], ~opcode[3], ~opcode[2], ~opcode[1], ~opcode[0]);  // r_type: opcode == 00000
+    and addi_check (addi_type, ~opcode[4], ~opcode[3], opcode[2], ~opcode[1], opcode[0]);   // addi: opcode == 00101
+    and lw_check (lw_type, ~opcode[4], opcode[3], ~opcode[2], ~opcode[1], ~opcode[0]);      // lw: opcode == 01000
+    and sw_check (sw_type, ~opcode[4], ~opcode[3], opcode[2], opcode[1], opcode[0]);        // sw: opcode == 00111
+
     assign reg_write = r_type | addi_type | lw_type;
     assign mem_write = sw_type;
-    assign mem_read = lw_type;
-    assign reg_dst = r_type;
+    assign mem_read  = lw_type;
     assign alu_src = addi_type | lw_type | sw_type;
     assign mem_to_reg = lw_type;
-    assign pc_src = 1'b0;  // No branches in this checkpoint
-        
-    /* ———————————————————— EX/MEM ———————————————————— */
-    // Mentioned above, here is where our write register is set
-    wire [4:0] write_reg;
-    mux_2_1 reg_dst_mux (
-        .out(write_reg),
-        .a(rt),
-        .b(rd),
-        .s(reg_dst)
-    );
-    assign ctrl_writeReg = write_reg;
+
+
+    /* ---------------------------------------------------------------------
+       IMPORTANT!
+       Regfile read ports:
+       ctrl_readRegA = rs
+       ctrl_readRegB = rd when sw (store) else rt
+       --------------------------------------------------------------------- */
+
+    assign ctrl_readRegA = rs;
+    assign ctrl_readRegB = sw_type ? rd : rt;
+
+
+    /* —————————————————————————— EX stage —————————————————————————— */
+    /* --------------------------------------------------------------------- 
+        R-type
+        add $rd, $rs, $rt	    00000 (00000)
+        sub $rd, $rs, $rt	    00000 (00001)
+        and $rd, $rs, $rt	    00000 (00010)
+        or $rd, $rs, $rt	    00000 (00011)
+        sll $rd, $rs, shamt	    00000 (00100)
+        sra $rd, $rs, shamt	    00000 (00101)
+
+        I-type
+        addi $rd, $rs, N	    00101
+        sw $rd, N($rs)	        00111
+        lw $rd, N($rs)	        01000
+       --------------------------------------------------------------------- */
     
-    // ALU Source Mux
+    
+    // R-Type , the ([xxxxx])
+    wire add_func, sub_func, and_func, or_func, sll_func, sra_func;
+    and add_gate (add_func, ~alu_op[4], ~alu_op[3], ~alu_op[2], ~alu_op[1], ~alu_op[0]);
+    and sub_gate (sub_func, ~alu_op[4], ~alu_op[3], ~alu_op[2], ~alu_op[1], alu_op[0]);
+    and and_gate (and_func, ~alu_op[4], ~alu_op[3], ~alu_op[2], alu_op[1], ~alu_op[0]);
+    and or_gate  (or_func,  ~alu_op[4], ~alu_op[3], ~alu_op[2], alu_op[1], alu_op[0]);
+    and sll_gate (sll_func, ~alu_op[4], ~alu_op[3], alu_op[2], ~alu_op[1], ~alu_op[0]);
+    and sra_gate (sra_func, ~alu_op[4], ~alu_op[3], alu_op[2], ~alu_op[1], alu_op[0]);
+
+
+    // Check which operation to use
+    wire add_op, sub_op, and_op, or_op, sll_op, sra_op;
+    wire [4:0] alu_control;
+    assign add_op = (r_type & add_func) | addi_type;    // an '+' can be "add" (R-type) or "addi" (i-type)
+    assign sub_op = r_type & sub_func;
+    assign and_op = r_type & and_func;
+    assign or_op  = r_type & or_func;
+    assign sll_op = r_type & sll_func;
+    assign sra_op = r_type & sra_func;
+
+    assign alu_control = add_op ? 5'b00000 :
+                         sub_op ? 5'b00001 :
+                         and_op ? 5'b00010 :
+                         or_op  ? 5'b00011 :
+                         sll_op ? 5'b00100 :
+                         sra_op ? 5'b00101 :
+                         5'b00000;
+
+
+    // MUX to calcualte soruce b for the ALU
     wire [31:0] alu_src_b;
+
     mux_2_1 alu_src_mux (
         .out(alu_src_b),
         .a(data_readRegB),
         .b(sign_extended),
         .s(alu_src)
     );
-    
-    // ALU
-    wire [31:0] alu_result;
-    wire alu_zero;
-    wire overflow;
-    
-    // ALU OP selection
-    wire add_op, sub_op, and_op, or_op, sll_op, sra_op;
-    
-    // R-type functions
-    /*
-        add     $rd, $rs, $rt	    00000 (00000)
-        sub     $rd, $rs, $rt	    00000 (00001)
-        and     $rd, $rs, $rt	    00000 (00010)
-        or      $rd, $rs, $rt	    00000 (00011)
-        sll     $rd, $rs, shamt	    00000 (00100)
-        sra     $rd, $rs, shamt	    00000 (00101)
-    */
-    wire add_func, sub_func, and_func, or_func, sll_func, sra_func;
 
-    and add_gate (add_func, ~alu_op[4], ~alu_op[3], ~alu_op[2], ~alu_op[1], ~alu_op[0]);
-    and sub_gate (sub_func, ~alu_op[4], ~alu_op[3], ~alu_op[2], ~alu_op[1], alu_op[0]);
-    and and_gate (and_func, ~alu_op[4], ~alu_op[3], ~alu_op[2], alu_op[1], ~alu_op[0]);
-    and or_gate (or_func, ~alu_op[4], ~alu_op[3], ~alu_op[2], alu_op[1], alu_op[0]);
-    and sll_gate (sll_func, ~alu_op[4], ~alu_op[3], alu_op[2], ~alu_op[1], ~alu_op[0]);
-    and sra_gate (sra_func, ~alu_op[4], ~alu_op[3], alu_op[2], ~alu_op[1], alu_op[0]);
-    
-    assign add_op = r_type & add_func | addi_type;      // For addi
-    assign sub_op = r_type & sub_func;
-    assign and_op = r_type & and_func;
-    assign or_op = r_type & or_func;
-    assign sll_op = r_type & sll_func;
-    assign sra_op = r_type & sra_func;
-    
-    // ALU control
-    wire [4:0] alu_control;
-    assign alu_control = add_op ? 5'b00000 :
-                         sub_op ? 5'b00001 :
-                         and_op ? 5'b00010 :
-                         or_op ? 5'b00011 :
-                         sll_op ? 5'b00100 :
-                         sra_op ? 5'b00101 :
-                         5'b00000;
-    
-    // ALU instantiation
+
+    // Execute the instruction
+    wire [31:0] alu_result;
+    wire alu_isNotEqual, alu_isLessThan, alu_overflow;
+
     alu main_alu (
         .data_operandA(data_readRegA),
         .data_operandB(alu_src_b),
         .ctrl_ALUopcode(alu_control),
         .ctrl_shiftamt(shamt),
         .data_result(alu_result),
-        .isNotEqual(alu_zero),
-        .isLessThan(),                      // NOTE: THIS PART IS MISSING
-        .overflow(overflow)
+        .isNotEqual(alu_isNotEqual),
+        .isLessThan(alu_isLessThan),
+        .overflow(alu_overflow)
     );
+
+
+    /* ---------------------------------------------------------------------
+        Overflow / rstatus forwarding
+        $rd = $rs + $rt         $rstatus = 1 if overflow
+        $rd = $rs + N           $rstatus = 2 if overflow
+        $rd = $rs - $rt         $rstatus = 3 if overflow
+       --------------------------------------------------------------------- */
+    wire r_add_overflow = r_type & add_func & alu_overflow;
+    wire i_addi_overflow = addi_type & alu_overflow;
+    wire r_sub_overflow = sub_op & alu_overflow;
     
-    // Overflow handling
-    /*
-        add : $rstatus = 1 if overflow
-        addi : $rstatus = 2 if overflow
-        sub : $rstatus = 3 if overflow    
-        default : 0
-    */
+    // Set the overflow status accordingly
     wire [31:0] rstatus;
-    assign rstatus = (add_op & overflow) ? 32'd1 :
-                     (addi_type & overflow) ? 32'd2 :
-                     (sub_op & overflow) ? 32'd3 :
+    assign rstatus = i_addi_overflow ? 32'd2 :      // moving this up fixed an issue, no idea why
+                     r_add_overflow ? 32'd1 :
+                     r_sub_overflow ? 32'd3 :
                      32'd0;
-    
-    
-    /* ———————————————————— MEM/WB Stage ———————————————————— */
-    // ALU –> Data Memory
+
+    // Signal for r30 if there is an overflow
+    wire overflow_write_rstatus;
+    assign overflow_write_rstatus = r_add_overflow | i_addi_overflow | r_sub_overflow;
+
+
+    /* —————————————————————————— MEM stage —————————————————————————— */
+    // Instatiated at the TOP
     assign address_dmem = alu_result[11:0];
     assign data = data_readRegB;
     assign wren = mem_write;
+
+
+    /* —————————————————————————— WB stage —————————————————————————— */
+
+    /*
+        ●	$r30 is the status register, also called $rstatus
+            ○	It may be set and overwritten like a normal register; however, as indicated in the ISA, 
+                it can also be set when certain exceptions occur
+            ○	Exceptions take precedent when writing to $r30. 
+                This means that any values written to $r30 
+                due to an exception will override values from regular instructions, 
+                ensuring that the status register reflects 
+                the system's critical states first and foremost.
+    */
+
+
+    // Pick the data to write to register
+    wire [31:0] mem_to_reg_data;
+    mux_2_1 mem_to_reg_mux (
+        .out(mem_to_reg_data),        
+        .a(alu_result),               // Input A: ALU computation result
+        .b(q_dmem),                   // Input B: data from data memory (for lw)
+        .s(mem_to_reg)                // Select: 0=ALU result, 1=memory data
+    );
+
+
+    /* 
+        Output Register 
+        - Overflow case: write to register 30 (rstatus register for exception handling)
+        - Normal case: write to destination register (rd)
+        NOTE: Exceptions take precedent when writing to $r30.
+    */
+    wire [4:0] final_write_reg;
+    assign final_write_reg  = overflow_write_rstatus ? 5'd30 : rd;
+
+
+    /*
+        Write Permission
+        - Normal instruction wants to write (reg_write == 1)
+        OR 
+        - when we have an overflow and need to write status to r30
+    */
+    wire final_write_enable;
+    assign final_write_enable = reg_write | overflow_write_rstatus;
+
+
+    /*  DO NOT FORGET THIS PART!
+        Check if we're trying to write to register 0
+        ●	$r0 should ALWAYS be zero
+            ○	Protip: make sure your bypass logic handles this
+        NOTE: NOR of all bits should be 1 since all bits are 0
+    */
+    wire final_is_reg0;
+    assign final_is_reg0 = ~ ( | final_write_reg );
+
+
+    // Only enable write if we want to write AND it's not register 0
+    assign ctrl_writeEnable = final_write_enable & ~final_is_reg0;
     
 
-    /* ———————————————————— WB Stage ———————————————————— */
-    // Memory –> Register Mux
-    mux_2_1 mem_to_reg_mux (
-        .out(data_writeReg),
-        .a(alu_result),
-        .b(q_dmem),
-        .s(mem_to_reg)
-    );
+    // Tell the register file which register to write to
+    assign ctrl_writeReg = final_write_reg;
     
-    // Register write enable
-    assign ctrl_writeEnable = reg_write;
-    
+
+    // Choose the final data to write
+    assign data_writeReg = overflow_write_rstatus ? rstatus : mem_to_reg_data;
+
+
 endmodule
