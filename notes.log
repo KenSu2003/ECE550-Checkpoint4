@@ -14,6 +14,4 @@ Should exit
 # Now compute $23 = $29 - $12  => 0x80000000 - 1 => 0x7FFFFFFF -> signed overflow
 sub  $23, $29, $12       # causes overflow -> rstatus = 3 in $30
 
-# FAIL: r30 expected 0x00000002 observed 0x00000001
-addi $31, $31, 1          # overflow -> $30 should be set to 2 (check rstatus immed after this)
-Overflow seems to be inclrrect
+

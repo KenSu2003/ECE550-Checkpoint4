@@ -93,6 +93,20 @@ module processor(
 
     assign address_imem = pc;
 
+    // Latch fetched instruction on processor clock for stable decode
+    wire [31:0] instr;
+    generate
+        for (i = 0; i < 32; i = i + 1) begin : instr_reg_gen
+            dffe_ref instr_dffe_i (
+                .q(instr[i]),
+                .d(q_imem[i]),
+                .clk(clock),
+                .en(1'b1),
+                .clr(reset)
+            );
+        end
+    endgenerate
+
     /* ---------------------------------------------------------------------
        ID stage: instruction decode / fields
        --------------------------------------------------------------------- */
@@ -103,13 +117,13 @@ module processor(
     wire [16:0] immediate;
     wire [31:0] sign_extended;
 
-    assign opcode    = q_imem[31:27];
-    assign rd        = q_imem[26:22]; // destination for R-type and I-type in this ISA
-    assign rs        = q_imem[21:17];
-    assign rt        = q_imem[16:12];
-    assign shamt     = q_imem[11:7];
-    assign alu_op    = q_imem[6:2];
-    assign immediate = q_imem[16:0];
+    assign opcode    = instr[31:27];
+    assign rd        = instr[26:22]; // destination for R-type and I-type in this ISA
+    assign rs        = instr[21:17];
+    assign rt        = instr[16:12];
+    assign shamt     = instr[11:7];
+    assign alu_op    = instr[6:2];
+    assign immediate = instr[16:0];
 
     assign sign_extended = {{15{immediate[16]}}, immediate};
 
