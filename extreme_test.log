@@ -288,5 +288,3 @@
 # 
 # CHECKS FAILED: 2 mismatches
 # Simulation finished
-# ** Note: $finish    : C:/Users/hs452/Documents/ECE_350/check_point_4/processor_tb.v(206)
-#    Time: 5070 ns  Iteration: 0  Instance: /processor_tb
